@@ -1,8 +1,6 @@
 package otus.homework.coroutines
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.*
 import kotlinx.coroutines.*
 
 class CatsViewModel(
@@ -10,9 +8,9 @@ class CatsViewModel(
     private val serviceImage: CatsImageService
 ) : ViewModel() {
 
-    private val _resultData = MutableLiveData<Result>()
+    private val _resultData = MutableLiveData<Result<FactAndImage>>()
 
-    val resultData: LiveData<Result>
+    val resultData: LiveData<Result<FactAndImage>>
         get() = _resultData
 
     private var presenterScope = PresenterScope()
@@ -22,10 +20,10 @@ class CatsViewModel(
     }
 
     fun onInitComplete() {
-        presenterScope.launch(exceptionHandler) {
+        viewModelScope.launch(exceptionHandler) {
             val fact = async { catsService.getCatFact() }
             val image = async { serviceImage.getImageCat() }
-            _resultData.value = Success(FactAndImage(fact.await(), image.await()))
+            _resultData.value = Result.Success(FactAndImage(fact.await(), image.await()))
         }
     }
 
@@ -33,4 +31,10 @@ class CatsViewModel(
         super.onCleared()
         presenterScope.coroutineContext.cancelChildren()
     }
+}
+
+class CatsViewModelFactory(private val catsService: CatsService, private val serviceImage: CatsImageService) :
+    ViewModelProvider.NewInstanceFactory() {
+    override fun <T : ViewModel?> create(modelClass: Class<T>): T =
+        CatsViewModel(catsService, serviceImage) as T
 }
